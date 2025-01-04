@@ -1,3 +1,4 @@
+# Haskell ignores
 dist
 dist-*
 cabal-dev
@@ -21,3 +22,11 @@ cabal.project.local
 cabal.project.local~
 .HTF/
 .ghc.environment.*
+
+# image file extension ignores
+*.png
+*.svg
+*.jpg
+
+# DependenViz extension ignores
+*.dvz

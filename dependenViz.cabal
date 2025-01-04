@@ -73,10 +73,10 @@ executable dependenViz
     -- other-modules:
 
     -- LANGUAGE extensions used by modules in this package.
-    -- other-extensions:
+    other-extensions: DeriveGeneric
 
     -- Other library packages from which modules are imported.
-    build-depends:    graphviz ^>=2999.20.2.0, base ^>=4.19.1.0
+    build-depends:    graphviz ^>=2999.20.2.0, fgl >=5.4 && < 5.9, optparse-applicative ^>=0.18.1.0, base ^>=4.19.1.0
 
     build-tool-depends: happy:happy ^>=2.1.3
 
