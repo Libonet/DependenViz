@@ -34,16 +34,22 @@ Start :: { Project }
       | Nodes                         { Pr "" $1 }
 
 Nodes :: { [Node] }
-      :                               { [] }
-      | Node Nodes                    { $1 : $2 }
+      : Nodes Node                    { $2 : $1 }
+      | {- empty -}                   { [] }
 
 Node :: { Node }
      : NAME '{' Attributes '}'        { N $1 $3 }
 
+-- Attributes are comma separated, optionally with a comma at the end
 Attributes :: { [Attribute] }
-           :                          { [] }
-           | Attribute                { [$1] }
-           | Attributes ',' Attribute { $3 : $1 }
+           : Attributes1 Attribute ',' { $2 : $1 }
+           | Attributes1 Attribute     { $2 : $1 }
+           | Attribute ','             { [$1] }
+           | Attribute                 { [$1] }
+           | {- empty -}               { [] }
+
+Attributes1 : Attributes1 Attribute ',' { $2 : $1 }
+            | Attribute ','             { [$1] }
 
 Attribute :: { Attribute }
           : rank ':' int              { Rank $3 }
@@ -51,9 +57,9 @@ Attribute :: { Attribute }
           | depends ':' '[' Deps ']'  { Depends $4 }
 
 Deps :: { [Name] }
-     :                                { [] }
+     : Deps ',' NAME                  { $3 : $1 }
      | NAME                           { [$1] }
-     | Deps ',' NAME                  { $3 : $1 }
+     | {- empty -}                    { [] }
      
 {
 
@@ -85,7 +91,7 @@ catchP m k = \s l -> case m s l of
                         Failed e -> k e s l
 
 happyError :: P a
-happyError = \ s i -> Failed $ "Línea "++(show (i::LineNumber))++": Error de parseo\n"++(s)
+happyError = \ s i -> Failed $ "Line "++(show (i::LineNumber))++": Parsing error\n"++(s)
 
 data Token =     TName String
                | TPrName 
@@ -120,13 +126,13 @@ lexer cont s = case s of
                     (':':cs) -> cont TColon cs
                     (',':cs) -> cont TComma cs
                     unknown -> \line -> Failed $ 
-                     "Línea "++(show line)++": No se puede reconocer "++(show $ take 10 unknown)++ "..."
+                     "Line "++(show line)++": Could not parse "++(show $ take 10 unknown)++ "..."
                     where lexVar cs = case span isAlphaNum cs of
-                              ("rank",rest)         -> cont TRank rest
-                              ("color",rest)        -> cont TColor rest
-                              ("depends",rest)      -> cont TDepends rest
-                              ("project_name",rest) -> cont TPrName rest
-                              (name,rest)           -> cont (TName name) rest
+                              ("rank",rest)        -> cont TRank rest
+                              ("color",rest)       -> cont TColor rest
+                              ("depends",rest)     -> cont TDepends rest
+                              ("projectName",rest) -> cont TPrName rest
+                              (name,rest)          -> cont (TName name) rest
                           lexInt cs = case span isDigit cs of
                               (num,rest) -> cont (TInt (read num)) rest
                           -- consumirBK anidado cl cont s = case s of

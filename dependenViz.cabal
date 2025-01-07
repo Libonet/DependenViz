@@ -70,6 +70,7 @@ library
   exposed-modules:
       Parse
       DepTree
+      GraphInspection
   hs-source-dirs:
       src
   default-extensions:
@@ -108,6 +109,7 @@ executable dependenViz
     -- Other library packages from which modules are imported.
     build-depends:    
       dependenViz,
+      containers ^>=0.6.8,
       graphviz ^>=2999.20.2.0,
       fgl >=5.4 && < 5.9,
       optparse-applicative ^>=0.18.1.0,

@@ -20,7 +20,7 @@ Example input file in the DependenViz language
 
 input.dvz
 ```
-project_name: Test
+projectName: Test
 
 Base {
     -- comments start with '--'

@@ -1,13 +1,18 @@
 module Main where
 
 import Data.Char
+import Data.Map (Map)
+
 import Parse (deps_parse, ParseResult(..))
+import DepTree (Project(..))
+import GraphInspection
 
 import Data.GraphViz
 import Data.Graph.Inductive
 
 import Options.Applicative
 import System.Exit (exitFailure)
+import Data.GraphViz.Attributes.Complete (Attribute(FontSize, LabelLoc), VerticalPlacement (VTop))
 
 -- Type that holds the command-line options
 data Options = Options
@@ -69,14 +74,11 @@ main = do
 
   file <- readFile $ fileName options
   let parse_result = deps_parse file
-  project <- case parse_result of
-    Failed err -> do putStrLn err
-                     putStrLn "Failed to parse the input file"
-                     exitFailure
-    Ok project -> return project
-  let (kind, ext) = getKind options
-  -- add file extension to output name
-  let output = getOutput options ++ "." ++ ext
+  (Pr name node_list) <- case parse_result of
+      Failed err -> do putStrLn err
+                       putStrLn "Failed to parse the input file"
+                       exitFailure
+      Ok project -> return project
 
   -- Create the Graph
   let nodes' = [(1, "A"), (2, "B"), (3, "C")]
@@ -85,10 +87,17 @@ main = do
   let params :: GraphvizParams Node String String () String
       params = defaultParams {
         isDirected = True
-      , fmtNode = \(_, label) -> [toLabel label, shape Circle]
+      , globalAttributes = [
+          GraphAttrs [toLabel name, LabelLoc VTop, FontSize 20]
+      ]
+      , fmtNode = \(_, label) -> [toLabel label, shape BoxShape]
       , fmtEdge = \(_, _, eLabel) -> [toLabel eLabel]
       }
   let dotGraph = graphToDot params graph
+
+  let (kind, ext) = getKind options
+  -- add file extension to output name
+  let output = getOutput options ++ "." ++ ext
 
   -- Generate the visualization
   _ <- runGraphviz dotGraph kind output
