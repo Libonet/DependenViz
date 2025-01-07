@@ -1,11 +1,13 @@
 module Main where
 
 import Data.Char
+import Parse (deps_parse, ParseResult(..))
 
 import Data.GraphViz
 import Data.Graph.Inductive
 
 import Options.Applicative
+import System.Exit (exitFailure)
 
 -- Type that holds the command-line options
 data Options = Options
@@ -52,10 +54,10 @@ getKind :: Options -> (GraphvizOutput, String)
 getKind options = case outputType options of
   Nothing  -> (Png, "png")
   Just string -> case map toLower string of
-              "png"  -> (Png, "png")
-              "svg"  -> (Svg, "svg")
-              "jpg"  -> (Jpeg, "jpg")
-              "jpeg" -> (Jpeg, "jpeg")
+              n@"png"  -> (Png, n)
+              n@"svg"  -> (Svg, n)
+              n@"jpg"  -> (Jpeg, n)
+              n@"jpeg" -> (Jpeg, n)
               _      -> (Png, "png")
 
 main :: IO ()
@@ -65,6 +67,13 @@ main = do
   putStrLn "Parsed options: "
   print options
 
+  file <- readFile $ fileName options
+  let parse_result = deps_parse file
+  project <- case parse_result of
+    Failed err -> do putStrLn err
+                     putStrLn "Failed to parse the input file"
+                     exitFailure
+    Ok project -> return project
   let (kind, ext) = getKind options
   -- add file extension to output name
   let output = getOutput options ++ "." ++ ext
@@ -77,7 +86,7 @@ main = do
       params = defaultParams {
         isDirected = True
       , fmtNode = \(_, label) -> [toLabel label, shape Circle]
-      , fmtEdge = \(_, _, label) -> [toLabel label]
+      , fmtEdge = \(_, _, eLabel) -> [toLabel eLabel]
       }
   let dotGraph = graphToDot params graph
 
