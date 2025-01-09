@@ -10,7 +10,7 @@ DependenViz requires a Graphviz installation for it to work.
 
 Link to the [Graphviz installation page](https://graphviz.org/download/)
 
-To install DependenViz run `cabal install`
+To install DependenViz on your system run `cabal install` in the project folder
 
 To build it run `cabal build`, then `cabal run`
 
@@ -24,9 +24,9 @@ projectName: Test
 
 Base {
     -- comments start with '--'
-    rank: 0,
+    rank: 1,
     -- optional
-    color: blue,
+    color: Blue,
 }
 
 Base2 { }
@@ -36,13 +36,17 @@ dependency1 {
 }
 
 dependency2 {
-    rank: 2,
-    depends: [Base2],
+    rank: 3,
+    depends: [Base2]
 }
 
 dependency3 {
-    depends: [dependency1, dependency2],
+    depends: [dependency1, dependency2]
 }
 ```
 
+When called like `dependenViz input.dvz` or `cabal run dependenViz -- input.dvz -o output` this outputs
+
+output.png
+![output image](./prueba.png)
 
