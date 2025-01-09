@@ -48,5 +48,6 @@ dependency3 {
 When called like `dependenViz input.dvz` or `cabal run dependenViz -- input.dvz -o output` this outputs
 
 output.png
-![output image](prueba.png)
+
+<img src="prueba.png" alt="output image"/>
 
