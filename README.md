@@ -49,5 +49,5 @@ When called like `dependenViz input.dvz` or `cabal run dependenViz -- input.dvz 
 
 output.png
 
-<img src="prueba.png" alt="output image"/>
+![output image](docs/prueba.png)
 
