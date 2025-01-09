@@ -79,8 +79,10 @@ library
       LambdaCase
       DataKinds
       PolyKinds
+      FlexibleInstances
   build-depends:
     array,
+    containers ^>=0.6.8,
     base ^>=4.19.1.0,
     graphviz ^>=2999.20.2.0,
     fgl >=5.4 && < 5.9,

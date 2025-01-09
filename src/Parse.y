@@ -41,20 +41,21 @@ Node :: { Node }
      : NAME '{' Attributes '}'        { N $1 $3 }
 
 -- Attributes are comma separated, optionally with a comma at the end
-Attributes :: { [Attribute] }
-           : Attributes1 Attribute ',' { $2 : $1 }
-           | Attributes1 Attribute     { $2 : $1 }
-           | Attribute ','             { [$1] }
-           | Attribute                 { [$1] }
-           | {- empty -}               { [] }
+Attributes :: { Attributes }
+           : Attributes1 Attribute ',' { $2 ($1 newAttribute) }
+           | Attributes1 Attribute     { $2 ($1 newAttribute) }
+           | Attribute ','             { $1 newAttribute }
+           | Attribute                 { $1 newAttribute }
+           | {- empty -}               { newAttribute }
 
-Attributes1 : Attributes1 Attribute ',' { $2 : $1 }
-            | Attribute ','             { [$1] }
+Attributes1 :: { Attributes -> Attributes }
+            : Attributes1 Attribute ',' { $2 . $1 }
+            | Attribute ','             { $1 }
 
-Attribute :: { Attribute }
-          : rank ':' int              { Rank $3 }
-          | color ':' NAME            { Color (parseX11Color $3) }
-          | depends ':' '[' Deps ']'  { Depends $4 }
+Attribute :: { Attributes -> Attributes }
+          : rank ':' int              { addRank (validRank $3) }
+          | color ':' NAME            { addColor (parseX11Color $3) }
+          | depends ':' '[' Deps ']'  { addDeps $4 }
 
 Deps :: { [Name] }
      : Deps ',' NAME                  { $3 : $1 }
@@ -62,6 +63,8 @@ Deps :: { [Name] }
      | {- empty -}                    { [] }
      
 {
+
+validRank n = if n > 0 then Just n else Nothing
 
 parseX11Color :: String -> X11Color
 parseX11Color str = read str
