@@ -10,11 +10,19 @@ DependenViz requires a Graphviz installation for it to work.
 
 Link to the [Graphviz installation page](https://graphviz.org/download/)
 
-To install DependenViz on your system run `cabal install` in the project folder
+To install DependenViz on your system run `cabal install .` in the project folder
 
-To build it run `cabal build`, then `cabal run`
+To build it run `cabal build`, then `cabal run dependenViz -- [input] (OPTIONS)`
 
 ## Usage
+
+dependenViz FILENAME \[-o|--output File] \[-t|--type Extension]
+
+Available options:
+  FILENAME                 Name of the file to process
+  -o,--output File         Optional name of output file. Default (FILENAME)
+  -t,--type Extension      Optional extension of output file. Default 'png'
+  -h,--help                Show this help text
 
 Example input file in the DependenViz language
 
@@ -45,7 +53,7 @@ dependency3 {
 }
 ```
 
-When called like `dependenViz input.dvz` or `cabal run dependenViz -- input.dvz -o output` this outputs
+When called with `dependenViz input.dvz` or `cabal run dependenViz -- input.dvz -o output` this outputs
 
 output.png
 
