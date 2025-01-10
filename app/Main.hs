@@ -5,7 +5,7 @@ import qualified Data.Map as Map
 
 import Parse (deps_parse, ParseResult(..))
 import qualified DepTree as DT
--- import GraphInspection
+import qualified GraphInspection as GI
 
 import Data.GraphViz
 import Data.Graph.Inductive
@@ -91,19 +91,25 @@ main = do
 
 createDotGraph :: DT.Project -> IO (DotGraph Data.Graph.Inductive.Node)
 createDotGraph (DT.Pr pName nodeList) = do
-  let (graph, nodeMap, revMap) = DT.createGraph nodeList
+  let (graph', nodeMap, revMap) = DT.createGraph nodeList
+
+  -- If the graph has no cycles
+  graph <- if GI.kahnAlgorithm graph'
+           then return graph'
+           else do putStrLn "The dependency tree has a cycle"
+                   exitFailure
 
   let nodeCount = Map.size nodeMap
-  putStrLn $ "NodeCount = " ++ show nodeCount
+  -- putStrLn $ "NodeCount = " ++ show nodeCount
   let (maxRank, rankedNodeMap) = DT.findMaxRank nodeMap revMap
-  putStrLn $ "maxRank = " ++ show maxRank
+  -- putStrLn $ "maxRank = " ++ show maxRank
+
+  -- Insert the node that holds the title
   let titledGraph'   = insNode (0, pName) graph
   let titledGraph''  = referenceNodes titledGraph' nodeCount maxRank
-  putStrLn "Passed referenceNodes"
   let titledGraph''' = referenceEdges titledGraph'' nodeCount maxRank
-  putStrLn "Passed referenceEdges"
   let titledGraph    = invisibleEdges titledGraph''' rankedNodeMap revMap
-  putStrLn "Passed invisibleEdges"
+
   -- Add attributes to nodes
   let params :: GraphvizParams Data.Graph.Inductive.Node String String Int String
       params = defaultParams {
@@ -125,6 +131,17 @@ createDotGraph (DT.Pr pName nodeList) = do
   then return $ graphToDot params graph
   else return $ graphToDot params titledGraph
 
+-- repeatFunc :: (a -> a) -> Int -> a -> a
+-- repeatFunc _ 0 acc = acc
+-- repeatFunc f times acc = repeatFunc f (times-1) (f acc)
+
+clustBy :: Int -> DT.NodeMap -> DT.RevMap -> (Int, String) -> NodeCluster Int (Int, String)
+clustBy nodeCount nodeMap revMap (n,l) = case n of
+  0  -> C 0 $ Data.GraphViz.N (n,l)
+  _  -> if n <= nodeCount
+        then C (fst $ DT.getRank nodeMap revMap n) $ Data.GraphViz.N (n,l)
+        else C (read l) $ Data.GraphViz.N (n,l)
+
 referenceNodes :: Gr String String -> Int -> Int -> Gr String String
 referenceNodes graph' nodeCount maxRank = insNodes [(i+nodeCount,show i) | i <- [1..maxRank] ] graph'
 
@@ -137,16 +154,5 @@ invisibleEdges graph' nodeMap revMap = aux graph' (Map.keys nodeMap)
     aux :: Gr String String -> [Int] -> Gr String String
     aux graph'' []     = graph''
     aux graph'' (i:xs) = if (fst . DT.getRank nodeMap revMap) i == 1 then aux (insEdge (0,i,"") graph'') xs else aux graph'' xs
-
--- repeatFunc :: (a -> a) -> Int -> a -> a
--- repeatFunc _ 0 acc = acc
--- repeatFunc f times acc = repeatFunc f (times-1) (f acc)
-
-clustBy :: Int -> DT.NodeMap -> DT.RevMap -> (Int, String) -> NodeCluster Int (Int, String)
-clustBy nodeCount nodeMap revMap (n,l) = case n of
-  0  -> C 0 $ Data.GraphViz.N (n,l)
-  _  -> if n <= nodeCount
-        then C (fst $ DT.getRank nodeMap revMap n) $ Data.GraphViz.N (n,l)
-        else C (read l) $ Data.GraphViz.N (n,l)
 
 

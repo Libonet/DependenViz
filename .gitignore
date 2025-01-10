@@ -28,7 +28,8 @@ cabal.project.local~
 *.svg
 *.jpg
 
-!/docs/*
+!/docs/prueba.png
 
 # DependenViz extension ignores
 *.dvz
+
