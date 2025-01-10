@@ -68,14 +68,14 @@ main :: IO ()
 main = do
   -- Parse the input
   options <- execParser opts
-  putStrLn "Parsed options: "
-  print options
+  -- putStrLn "Parsed options: "
+  -- print options
 
   file <- readFile $ fileName options
 
   project <- case deps_parse file of
       Failed err -> do putStrLn err
-                       putStrLn "Failed to parse the input file"
+                       putStrLn "Failed to parse the input file!"
                        exitFailure
       Ok project -> return project
 
@@ -93,22 +93,18 @@ createDotGraph :: DT.Project -> IO (DotGraph Data.Graph.Inductive.Node)
 createDotGraph (DT.Pr pName nodeList) = do
   let (graph', nodeMap, revMap) = DT.createGraph nodeList
 
-  -- If the graph has no cycles
-  graph <- if GI.kahnAlgorithm graph'
-           then return graph'
-           else do putStrLn "The dependency tree has a cycle"
-                   exitFailure
+  -- check if the graph has no cycles
+  graph <- do let ret = GI.kahnAlgorithm graph'
+              if isEmpty ret
+              then return graph'
+              else do putStrLn "Failed to create the tree! The dependency tree has a cycle"
+                      putStrLn $ "Possible offenders: " ++ getNodeLabels ret nodeMap
+                      exitFailure
 
   let nodeCount = Map.size nodeMap
   -- putStrLn $ "NodeCount = " ++ show nodeCount
   let (maxRank, rankedNodeMap) = DT.findMaxRank nodeMap revMap
   -- putStrLn $ "maxRank = " ++ show maxRank
-
-  -- Insert the node that holds the title
-  let titledGraph'   = insNode (0, pName) graph
-  let titledGraph''  = referenceNodes titledGraph' nodeCount maxRank
-  let titledGraph''' = referenceEdges titledGraph'' nodeCount maxRank
-  let titledGraph    = invisibleEdges titledGraph''' rankedNodeMap revMap
 
   -- Add attributes to nodes
   let params :: GraphvizParams Data.Graph.Inductive.Node String String Int String
@@ -117,23 +113,39 @@ createDotGraph (DT.Pr pName nodeList) = do
       , clusterID = Num . Int
       , clusterBy = clustBy nodeCount rankedNodeMap revMap
       , fmtCluster = const [GraphAttrs [rank SameRank, style invis]]
-      , fmtNode = \case 
+      , fmtNode = \case
           { (0, _)     -> [toLabel pName, shape BoxShape, style bold]
-          ; (i, label) -> if i <= nodeCount 
-                          then [toLabel label, shape BoxShape, style filled] ++ (DT.getAttributes . snd) ((Map.!) rankedNodeMap i)
+          ; (i, label) -> if i <= nodeCount
+                          then [toLabel label, shape BoxShape, style filled]
+                               ++ (DT.getAttributes . snd) ((Map.!) rankedNodeMap i)
                           else [style invis]
           }
       -- we make the edges from the title invisible
       , fmtEdge = \(i, _, eLabel) -> if i == 0 || i >= nodeCount then [style invis] else [toLabel eLabel]
       }
-  putStrLn "Passed params"
-  if pName == "" 
+
+  if pName == ""
   then return $ graphToDot params graph
-  else return $ graphToDot params titledGraph
+  else
+    -- Insert the node that holds the title
+    let titledGraph'   = insNode (0, pName) graph
+        titledGraph''  = referenceNodes titledGraph' nodeCount maxRank
+        titledGraph''' = referenceEdges titledGraph'' nodeCount maxRank
+        titledGraph    = invisibleEdges titledGraph''' rankedNodeMap revMap
+    in return $ graphToDot params titledGraph
 
 -- repeatFunc :: (a -> a) -> Int -> a -> a
 -- repeatFunc _ 0 acc = acc
 -- repeatFunc f times acc = repeatFunc f (times-1) (f acc)
+
+getNodeLabels :: Graph gr => gr a b -> DT.NodeMap -> String
+getNodeLabels gr nodeMap = 
+    let names = map (fst . (Map.!) nodeMap) $ nodes gr
+    in separateNames names
+  where
+    separateNames [] = []
+    separateNames [x] = x
+    separateNames (x:xs) = x ++ ", " ++ separateNames xs
 
 clustBy :: Int -> DT.NodeMap -> DT.RevMap -> (Int, String) -> NodeCluster Int (Int, String)
 clustBy nodeCount nodeMap revMap (n,l) = case n of

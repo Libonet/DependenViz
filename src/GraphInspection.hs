@@ -11,11 +11,14 @@ import qualified Data.Graph.Inductive as G
  -
  -  So we check for cycles by trying to consume the graph
  -}
-kahnAlgorithm :: (G.DynGraph gr, Eq (gr a b)) => gr a b -> Bool
+kahnAlgorithm :: (G.DynGraph gr, Eq (gr a b)) => gr a b -> gr a b
 kahnAlgorithm graph =
-  G.isEmpty graph ||
-  (let filtered = G.gfiltermap haveDeps graph
-   in ((filtered /= graph) && kahnAlgorithm filtered))
+  if G.isEmpty graph
+  then graph 
+  else let filtered = G.gfiltermap haveDeps graph
+       in if filtered == graph
+          then graph
+          else kahnAlgorithm filtered
 
 
 haveDeps :: G.Context a b -> G.MContext a b
