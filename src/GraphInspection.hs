@@ -14,15 +14,15 @@ import qualified Data.Graph.Inductive as G
 kahnAlgorithm :: (G.DynGraph gr, Eq (gr a b)) => gr a b -> gr a b
 kahnAlgorithm graph =
   if G.isEmpty graph
-  then graph 
-  else let filtered = G.gfiltermap haveDeps graph
+  then graph
+  else let filtered = G.nfilter (haveDeps graph) graph
        in if filtered == graph
-          then graph
+          then filtered
           else kahnAlgorithm filtered
 
 
-haveDeps :: G.Context a b -> G.MContext a b
-haveDeps n@(toNode, _, _, _) = 
-  if null toNode 
-  then Nothing 
-  else Just n
+haveDeps :: G.Graph gr => gr a b -> G.Node -> Bool
+haveDeps gr n =
+  not (null $ G.pre gr n)
+
+

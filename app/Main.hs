@@ -93,12 +93,15 @@ createDotGraph :: DT.Project -> IO (DotGraph Data.Graph.Inductive.Node)
 createDotGraph (DT.Pr pName nodeList) = do
   let (graph', nodeMap, revMap) = DT.createGraph nodeList
 
+  -- prettyPrint graph'
+
   -- check if the graph has no cycles
   graph <- do let ret = GI.kahnAlgorithm graph'
               if isEmpty ret
               then return graph'
               else do putStrLn "Failed to create the tree! The dependency tree has a cycle"
                       putStrLn $ "Possible offenders: " ++ getNodeLabels ret nodeMap
+                      -- prettyPrint ret
                       exitFailure
 
   let nodeCount = Map.size nodeMap
@@ -139,7 +142,7 @@ createDotGraph (DT.Pr pName nodeList) = do
 -- repeatFunc f times acc = repeatFunc f (times-1) (f acc)
 
 getNodeLabels :: Graph gr => gr a b -> DT.NodeMap -> String
-getNodeLabels gr nodeMap = 
+getNodeLabels gr nodeMap =
     let names = map (fst . (Map.!) nodeMap) $ nodes gr
     in separateNames names
   where
