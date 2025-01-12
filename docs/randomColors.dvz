@@ -1,0 +1,11 @@
+RandomColors: (color: all random);
+
+A {}
+
+B {
+  depends: [A]
+}
+
+C {
+  depends: [B]
+}

@@ -1,0 +1,23 @@
+TEST: (color: all only Green);
+
+Base {
+    -- comments start with '--'
+    rank: 1,
+    -- optional
+    color: Blue,
+}
+
+Base2 { }
+
+dependency1 {
+    depends: [Base],
+}
+
+dependency2 {
+    rank: 3,
+    depends: [Base2]
+}
+
+dependency3 {
+    depends: [dependency1, dependency2]
+}

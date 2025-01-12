@@ -1,0 +1,144 @@
+CorrelativasLcc2024: (color: clusters random);
+
+-- rank 1
+
+Algebra1 { }
+
+Analisis1 { }
+
+Prog1 { }
+
+-- rank 2
+
+Analisis2 {
+  depends: [Analisis1]
+}
+
+Algebra2 {
+  depends: [Algebra1]
+}
+
+Prog2 {
+  depends: [Prog1]
+}
+
+-- rank 3
+
+AlgebraLineal {
+  depends: [Algebra2]
+}
+
+Estructuras1 {
+  depends: [Prog2]
+}
+
+LenguajesFormales {
+  depends: [Prog2]
+}
+
+-- rank 4
+
+Logica {
+  depends: [Prog2],
+  rank: 4,
+}
+
+MetodosNumericos {
+  depends: [AlgebraLineal, Analisis2]
+}
+
+Complementos1 {
+  depends: [AlgebraLineal, Estructuras1]
+}
+
+Arquitectura {
+  depends: [Estructuras1]
+}
+
+-- rank 5
+
+Probabilidad {
+  depends: [Analisis2],
+  rank: 5,
+}
+
+Estructuras2 {
+  depends: [Complementos1]
+}
+
+SistemasOperativos1 {
+  depends: [Logica]
+}
+
+-- rank 6
+
+ModelosFisicos {
+  depends: [Probabilidad]
+}
+
+TeoriaBaseDatos {
+  depends: [Estructuras2, Logica]
+}
+
+AnalisisDeLenguajesDeProgramacion {
+  depends: [Estructuras2, Logica]
+}
+
+Comunicaciones {
+  depends: [Arquitectura],
+  rank: 6
+}
+
+-- rank 7
+
+ExamenSuficienciaIngles {
+  rank: 7
+}
+
+IntroduccionIA {
+  depends: [TeoriaBaseDatos]
+}
+
+IngenieriaDelSoftware1 {
+  depends: [Estructuras2, Logica],
+  rank: 7
+}
+
+SistemasOperativos2 {
+  depends: [SistemasOperativos1, Arquitectura],
+  rank: 7
+}
+
+-- rank 8
+
+Complementos2 {
+  depends: [Analisis2, AlgebraLineal, Logica],
+  rank: 8
+}
+
+IngenieriaDelSoftware2 {
+  depends: [IngenieriaDelSoftware1]
+}
+
+Compiladores {
+  depends: [AnalisisDeLenguajesDeProgramacion, LenguajesFormales],
+  rank: 8
+}
+
+-- rank 9
+
+PracticaProfesional {
+  rank: 9
+}
+
+SeguridadInformatica {
+  depends: [IngenieriaDelSoftware1],
+  rank: 9
+}
+
+TallerDeTesina {
+  rank: 9
+}
+
+
+

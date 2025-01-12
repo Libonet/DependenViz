@@ -1,0 +1,15 @@
+
+Base { }
+
+A {
+  depends: [Base, C]
+}
+
+B {
+  depends: [Base, A]
+}
+
+C {
+  depends: [Base, B]
+}
+

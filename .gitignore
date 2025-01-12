@@ -24,12 +24,12 @@ cabal.project.local~
 .ghc.environment.*
 
 # image file extension ignores
-*.png
-*.svg
-*.jpg
+# *.png
+# *.svg
+# *.jpg
 
-!/docs/prueba.png
+# !/docs/prueba.png
 
 # DependenViz extension ignores
-*.dvz
+# *.dvz
 
