@@ -116,7 +116,7 @@ createDotGraph (DT.Pr pAttrs nodeList) = do
   let params :: GraphvizParams Data.Graph.Inductive.Node String String Int String
       params = defaultParams {
         isDirected = True
-      , globalAttributes = [GraphAttrs [Splines PolyLine]]
+      , globalAttributes = [GraphAttrs [Splines Ortho]]
       , clusterID = Num . Int
       , clusterBy = clustBy nodeCount rankedNodeMap revMap
       , fmtCluster = const [GraphAttrs [rank SameRank, style invis]]
