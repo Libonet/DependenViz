@@ -26,9 +26,9 @@ Available options:
 
 Example input file in the DependenViz language
 
-input.dvz
+docs/prueba.dvz
 ```
-projectName: Test
+TEST: (color: all only LightBlue);
 
 Base {
     -- comments start with '--'
@@ -53,9 +53,9 @@ dependency3 {
 }
 ```
 
-When called with `dependenViz input.dvz` or `cabal run dependenViz -- input.dvz -o output` this outputs
+When called with `cabal run dependenViz -- docs/prueba.dvz -o output`,
+or with `dependenViz input.dvz` after installing with `cabal install .`, this outputs
 
 output.png
-
 ![output image](docs/prueba.png)
 
