@@ -82,6 +82,7 @@ library
       FlexibleInstances
   build-depends:
     array,
+    random,
     containers ^>=0.6.8,
     base ^>=4.19.1.0,
     graphviz ^>=2999.20.2.0,

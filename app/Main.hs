@@ -8,6 +8,7 @@ import qualified DepTree as DT
 import qualified GraphInspection as GI
 
 import Data.GraphViz
+import Data.GraphViz.Attributes.Complete
 import Data.Graph.Inductive
 
 import Options.Applicative hiding (style)
@@ -90,7 +91,7 @@ main = do
   putStrLn $ "Created output file: " ++ output_path
 
 createDotGraph :: DT.Project -> IO (DotGraph Data.Graph.Inductive.Node)
-createDotGraph (DT.Pr pName nodeList) = do
+createDotGraph (DT.Pr pAttrs nodeList) = do
   let (graph', nodeMap, revMap) = DT.createGraph nodeList
 
   -- prettyPrint graph'
@@ -100,7 +101,7 @@ createDotGraph (DT.Pr pName nodeList) = do
               if isEmpty ret
               then return graph'
               else do putStrLn "Failed to create the tree! The dependency tree has a cycle"
-                      putStrLn $ "Possible offenders: " ++ getNodeLabels ret nodeMap
+                      putStrLn $ "Nodes in a cycle: " ++ getNodeLabels ret nodeMap
                       -- prettyPrint ret
                       exitFailure
 
@@ -109,29 +110,32 @@ createDotGraph (DT.Pr pName nodeList) = do
   let (maxRank, rankedNodeMap) = DT.findMaxRank nodeMap revMap
   -- putStrLn $ "maxRank = " ++ show maxRank
 
+  colorSpace <- DT.getColorSpace pAttrs nodeCount maxRank
+
   -- Add attributes to nodes
   let params :: GraphvizParams Data.Graph.Inductive.Node String String Int String
       params = defaultParams {
         isDirected = True
+      , globalAttributes = [GraphAttrs [Splines PolyLine]]
       , clusterID = Num . Int
       , clusterBy = clustBy nodeCount rankedNodeMap revMap
       , fmtCluster = const [GraphAttrs [rank SameRank, style invis]]
       , fmtNode = \case
-          { (0, _)     -> [toLabel pName, shape BoxShape, style bold]
+          { (0, _)     -> [toLabel (DT.name pAttrs), shape BoxShape, style bold]
           ; (i, label) -> if i <= nodeCount
-                          then [toLabel label, shape BoxShape, style filled]
-                               ++ (DT.getAttributes . snd) ((Map.!) rankedNodeMap i)
+                          then let nAttrs = DT.getNodeAttributes pAttrs colorSpace rankedNodeMap revMap i
+                               in [toLabel label, shape BoxShape, style filled] ++ nAttrs
                           else [style invis]
           }
       -- we make the edges from the title invisible
       , fmtEdge = \(i, _, eLabel) -> if i == 0 || i >= nodeCount then [style invis] else [toLabel eLabel]
       }
 
-  if pName == ""
+  if DT.name pAttrs == ""
   then return $ graphToDot params graph
   else
     -- Insert the node that holds the title
-    let titledGraph'   = insNode (0, pName) graph
+    let titledGraph'   = insNode (0, DT.name pAttrs) graph
         titledGraph''  = referenceNodes titledGraph' nodeCount maxRank
         titledGraph''' = referenceEdges titledGraph'' nodeCount maxRank
         titledGraph    = invisibleEdges titledGraph''' rankedNodeMap revMap
