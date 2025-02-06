@@ -17,7 +17,7 @@ To build it run `cabal build`, then `cabal run dependenViz -- [input] (OPTIONS)`
 ## Usage
 
 ```
-dependenViz FILENAME \[-o|--output File] \[-t|--type Extension]
+dependenViz FILENAME [-o|--output File] [-t|--type Extension]
 
 Available options:
   FILENAME                 Name of the file to process
