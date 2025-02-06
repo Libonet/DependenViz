@@ -57,7 +57,7 @@ dependency3 {
 ```
 
 When called with `cabal run dependenViz -- docs/prueba.dvz -o output`,
-or with `dependenViz input.dvz` after installing with `cabal install .`, this outputs
+or with `dependenViz prueba.dvz -o output` after installing with `cabal install .`, this outputs
 
 output.png
 
