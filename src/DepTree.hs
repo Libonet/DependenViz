@@ -1,4 +1,4 @@
-module DepTree where
+module DepTree (module DepTree) where
 
 import qualified Data.GraphViz.Attributes as GV
 import qualified Data.GraphViz.Attributes.Colors as GC
@@ -32,10 +32,10 @@ getNodeAttributes pAttrs colorSpace nodeMap revMap i = case colorBy pAttrs of
   where
     nodeAttrs = getAttributes $ snd $ (Map.!) nodeMap i
 
--- colorSpace was made with its kind in mind
 getColorFrom :: [GV.X11Color] -> Int -> GV.Attribute
 getColorFrom colorSpace i = GV.fillColor $ colorSpace !!! (i-1)
 
+-- safe indexing
 (!!!) :: [GV.X11Color] -> Int -> GV.X11Color
 [] !!! i = GV.LightBlue
 xs !!! i = xs !! (i `mod` length xs)

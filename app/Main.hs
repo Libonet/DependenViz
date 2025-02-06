@@ -1,11 +1,10 @@
 module Main where
 
-import Data.Char
 import qualified Data.Map as Map
 
-import Parse (deps_parse, ParseResult(..))
+import Parse (depsParse, ParseResult(..))
 import qualified DepTree as DT
-import qualified GraphInspection as GI
+import GraphInspection (checkCycles)
 
 import Data.GraphViz
 import Data.GraphViz.Attributes.Complete
@@ -13,6 +12,7 @@ import Data.Graph.Inductive
 
 import Options.Applicative hiding (style)
 import System.Exit (exitFailure)
+import Text.Read (readMaybe)
 
 -- Type that holds the command-line options
 data Options = Options
@@ -55,18 +55,18 @@ getOutput options = case outputName options of
       dropExtension = takeWhile (/= '.')
   Just name -> name
 
-getKind :: Options -> (GraphvizOutput, String)
+getKind :: Options -> IO (GraphvizOutput, String)
 getKind options = case outputType options of
-  Nothing  -> (Png, "png")
-  Just string -> case map toLower string of
-              n@"png"  -> (Png, n)
-              n@"svg"  -> (Svg, n)
-              n@"jpg"  -> (Jpeg, n)
-              n@"jpeg" -> (Jpeg, n)
-              _      -> (Png, "png")
+  Nothing  -> return (Png, "png")
+  Just string -> case readMaybe string of
+    Nothing   -> do putStrLn "Invalid extension kind!"
+                    exitFailure
+    Just kind -> return (kind, string)
 
 main :: IO ()
 main = do
+  quitWithoutGraphviz "Graphviz doesn't seem to be available. Install it before using DependenViz."
+
   -- Parse the input
   options <- execParser opts
   -- putStrLn "Parsed options: "
@@ -74,7 +74,7 @@ main = do
 
   file <- readFile $ fileName options
 
-  project <- case deps_parse file of
+  project <- case depsParse file of
       Failed err -> do putStrLn err
                        putStrLn "Failed to parse the input file!"
                        exitFailure
@@ -82,7 +82,7 @@ main = do
 
   dotGraph <- createDotGraph project
 
-  let (kind, ext) = getKind options
+  (kind, ext) <- getKind options
   -- add file extension to output name
   let output = getOutput options ++ "." ++ ext
 
@@ -94,21 +94,11 @@ createDotGraph :: DT.Project -> IO (DotGraph Data.Graph.Inductive.Node)
 createDotGraph (DT.Pr pAttrs nodeList) = do
   let (graph', nodeMap, revMap) = DT.createGraph nodeList
 
-  -- prettyPrint graph'
-
   -- check if the graph has no cycles
-  graph <- do let ret = GI.kahnAlgorithm graph'
-              if isEmpty ret
-              then return graph'
-              else do putStrLn "Failed to create the tree! The dependency tree has a cycle"
-                      putStrLn $ "Nodes in a cycle: " ++ getNodeLabels ret nodeMap
-                      -- prettyPrint ret
-                      exitFailure
+  graph <- checkCycles graph' nodeMap
 
   let nodeCount = Map.size nodeMap
-  -- putStrLn $ "NodeCount = " ++ show nodeCount
   let (maxRank, rankedNodeMap) = DT.findMaxRank nodeMap revMap
-  -- putStrLn $ "maxRank = " ++ show maxRank
 
   colorSpace <- DT.getColorSpace pAttrs nodeCount maxRank
 
@@ -136,6 +126,7 @@ createDotGraph (DT.Pr pAttrs nodeList) = do
   else
     -- Insert the node that holds the title
     let titledGraph'   = insNode (0, DT.name pAttrs) graph
+        -- insert the invisible referenceNodes that keep the specified ranks
         titledGraph''  = referenceNodes titledGraph' nodeCount maxRank
         titledGraph''' = referenceEdges titledGraph'' nodeCount maxRank
         titledGraph    = invisibleEdges titledGraph''' rankedNodeMap revMap
@@ -144,15 +135,6 @@ createDotGraph (DT.Pr pAttrs nodeList) = do
 -- repeatFunc :: (a -> a) -> Int -> a -> a
 -- repeatFunc _ 0 acc = acc
 -- repeatFunc f times acc = repeatFunc f (times-1) (f acc)
-
-getNodeLabels :: Graph gr => gr a b -> DT.NodeMap -> String
-getNodeLabels gr nodeMap =
-    let names = map (fst . (Map.!) nodeMap) $ nodes gr
-    in separateNames names
-  where
-    separateNames [] = []
-    separateNames [x] = x
-    separateNames (x:xs) = x ++ ", " ++ separateNames xs
 
 clustBy :: Int -> DT.NodeMap -> DT.RevMap -> (Int, String) -> NodeCluster Int (Int, String)
 clustBy nodeCount nodeMap revMap (n,l) = case n of
