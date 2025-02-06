@@ -1,4 +1,4 @@
-RandomColors: (color: all random);
+(RandomColors; color: all random)
 
 A {}
 

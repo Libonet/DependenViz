@@ -1,4 +1,4 @@
-TEST: (color: all only LightBlue);
+(TEST; color: all only LightBlue)
 
 Base {
     -- comments start with '--'

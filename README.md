@@ -27,8 +27,9 @@ Available options:
 Example input file in the DependenViz language
 
 docs/prueba.dvz
+
 ```
-TEST: (color: all only LightBlue);
+(TEST; color: all only LightBlue)
 
 Base {
     -- comments start with '--'

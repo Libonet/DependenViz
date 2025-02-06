@@ -1,17 +1,18 @@
 {
 module Parse where
 import DepTree
-import Data.GraphViz.Attributes.Colors.X11 (X11Color)
+import Data.GraphViz.Attributes.Colors.X11 ( X11Color(LightBlue) )
 
 import Data.Maybe
 import Data.Char
+import Text.Read (readMaybe)
 }
 
 %monad { P } { thenP } { returnP }
 %name parseDeps Start
 
 %tokentype { Token }
-%lexer {lexer} {TEOF}
+%lexer { lexer } { TEOF }
 
 %token
     ':'      { TColon }
@@ -38,25 +39,26 @@ import Data.Char
 %%
 
 {-
-Example: (color: all only Blue);
-Example2;
-(name: Example3, color: clusters fromList [LightBlue, Blue, Green, LightGreen]);
+-- Name and attributes
+(Example; color: all only Blue) Nodes...
+
+-- Only name
+(Example2) Nodes...
+
+-- Only attributes
+(name: Example3, color: clusters fromList [LightBlue, Blue, Green, LightGreen]) Nodes...
 -}
 
 Start :: { Project }
-      : Start1 ';' Nodes { Pr $1 $3 }
-      | Nodes            { Pr newProject $1 }
+      : '(' Start1 ')' Nodes { Pr $2 $4 }
+      | Nodes                { Pr newProject $1 }
 
 Start1 :: { ProjectAttributes }
-       : NAME ':' '(' PrAttributes ')' { addName $1 $4 }
-       | NAME                          { addName $1 newProject }
-       | '(' PrAttributes ')'          { $2 }
+       : NAME ';' PrAttributes { addName $1 $3 }
+       | PrAttributes          { $1 }
+       | NAME                  { addName $1 newProject }
 
-{- Alternativa a Start1
-Start1 :: { ProjectAttributes }
-       : NAME ':' '(' PrAttributes ')' { addName $1 $4 }
-       | PrAttributes                  { $2 }
--}
+----- Project construction -----
 
 PrAttributes :: { ProjectAttributes }
              : PrAttributes1 PrAttribute ',' { $2 ($1 newProject) }
@@ -91,6 +93,8 @@ ColorList1 :: { [X11Color] }
            : ColorList1 ',' NAME { (parseX11Color $3) : $1 }
            | NAME                { [parseX11Color $1] }
 
+----- Nodes parsing -----
+
 Nodes :: { [Node] }
       : Nodes Node                    { $2 : $1 }
       | {- empty -}                   { [] }
@@ -123,14 +127,18 @@ Deps :: { [Name] }
 Deps1 :: { [Name] }
       : Deps1 ',' NAME { $3 : $1 }
       | NAME           { [$1] }
+
+----- End of language definition -----
      
 {
 
 validRank n = if n > 0 then Just n else Nothing
 
 parseX11Color :: String -> X11Color
-parseX11Color str = read str
-  
+parseX11Color str = case readMaybe str of
+  Nothing    -> LightBlue
+  Just color -> color
+
 data ParseResult a = Ok a | Failed String
                      deriving Show                     
 type LineNumber = Int
@@ -140,9 +148,9 @@ getLineNo :: P LineNumber
 getLineNo = \s l -> Ok l
 
 thenP :: P a -> (a -> P b) -> P b
-m `thenP` k = \s l-> case m s l of
-                         Ok a     -> k a s l
-                         Failed e -> Failed e
+m `thenP` k = \s l -> case m s l of
+                        Ok a     -> k a s l
+                        Failed e -> Failed e
                          
 returnP :: a -> P a
 returnP a = \s l-> Ok a
@@ -156,7 +164,7 @@ catchP m k = \s l -> case m s l of
                         Failed e -> k e s l
 
 happyError :: P a
-happyError = \ s i -> Failed $ "Line "++(show (i::LineNumber))++": Parsing error\n"++(s)
+happyError = \s i -> Failed $ "Line "++(show (i::LineNumber))++": Parsing error\n"++(take 10 s)++"..."
 
 
 data Token =     TName String
@@ -191,8 +199,8 @@ lexer cont s = case s of
                           | isDigit c -> lexInt (c:cs)
                           | isAlpha c -> lexVar (c:cs)
                     ('-':('-':cs)) -> lexer cont $ dropWhile ((/=) '\n') cs
-                    -- ('{':('-':cs)) -> consumirBK 0 0 cont cs	
-                    -- ('-':('}':cs)) -> \ line -> Failed $ "Línea "++(show line)++": Comentario no abierto"
+                    ('{':('-':cs)) -> consumirBK 0 0 cont cs	
+                    ('-':('}':cs)) -> \line -> Failed $ "Line "++(show line)++": Comment wasn't open"
                     ('{':cs) -> cont TOpen cs
                     ('}':cs) -> cont TClose cs
                     ('[':cs) -> cont TListOpen cs
@@ -203,7 +211,7 @@ lexer cont s = case s of
                     (';':cs) -> cont TSemiColon cs
                     (',':cs) -> cont TComma cs
                     unknown -> \line -> Failed $ 
-                     "Line "++(show line)++": Could not parse "++(show $ take 10 unknown)++ "..."
+                     "Line "++(show line)++": Could not parse "++(show $ take 3 unknown)++ "..."
                     where lexVar cs = case span isAlphaNum cs of
                               ("name",rest) -> cont TPrName rest
                               ("all",rest) -> cont TAll rest
@@ -217,15 +225,15 @@ lexer cont s = case s of
                               (name,rest)          -> cont (TName name) rest
                           lexInt cs = case span isDigit cs of
                               (num,rest) -> cont (TInt (read num)) rest
-                          -- consumirBK anidado cl cont s = case s of
-                          --     ('-':('-':cs)) -> consumirBK anidado cl cont $ dropWhile ((/=) '\n') cs
-                          --     ('{':('-':cs)) -> consumirBK (anidado+1) cl cont cs	
-                          --     ('-':('}':cs)) -> case anidado of
-                          --                         0 -> \line -> lexer cont cs (line+cl)
-                          --                         _ -> consumirBK (anidado-1) cl cont cs
-                          --     ('\n':cs) -> consumirBK anidado (cl+1) cont cs
-                          --     (_:cs) -> consumirBK anidado cl cont cs     
+                          consumirBK anidado cl cont s = case s of
+                              ('-':('-':cs)) -> consumirBK anidado cl cont $ dropWhile ((/=) '\n') cs
+                              ('{':('-':cs)) -> consumirBK (anidado+1) cl cont cs	
+                              ('-':('}':cs)) -> case anidado of
+                                                  0 -> \line -> lexer cont cs (line+cl)
+                                                  _ -> consumirBK (anidado-1) cl cont cs
+                              ('\n':cs) -> consumirBK anidado (cl+1) cont cs
+                              (_:cs) -> consumirBK anidado cl cont cs     
                                            
-deps_parse s = parseDeps s 1
+depsParse s = parseDeps s 1
 
 }
