@@ -16,6 +16,7 @@ To build it run `cabal build`, then `cabal run dependenViz -- [input] (OPTIONS)`
 
 ## Usage
 
+```
 dependenViz FILENAME \[-o|--output File] \[-t|--type Extension]
 
 Available options:
@@ -23,6 +24,7 @@ Available options:
   -o,--output File         Optional name of output file. Default (FILENAME)
   -t,--type Extension      Optional extension of output file. Default 'png'
   -h,--help                Show this help text
+```
 
 Example input file in the DependenViz language
 
