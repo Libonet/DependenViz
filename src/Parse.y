@@ -50,15 +50,15 @@ import Text.Read (readMaybe)
 -}
 
 Start :: { Project }
-      : '(' Start1 ')' Nodes { Pr $2 $4 }
+      : '(' ProjectInfo ')' Nodes { Pr $2 $4 }
       | Nodes                { Pr newProject $1 }
 
-Start1 :: { ProjectAttributes }
+----- Project construction -----
+
+ProjectInfo :: { ProjectAttributes }
        : NAME ';' PrAttributes { addName $1 $3 }
        | PrAttributes          { $1 }
        | NAME                  { addName $1 newProject }
-
------ Project construction -----
 
 PrAttributes :: { ProjectAttributes }
              : PrAttributes1 PrAttribute ',' { $2 ($1 newProject) }
