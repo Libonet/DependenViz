@@ -85,13 +85,8 @@ ColorType :: { ColorType }
           | fromList '[' ColorList ']' { FromList (reverse $3) }
 
 ColorList :: { [X11Color] }
-          : ColorList1 ',' NAME { (parseX11Color $3) : $1 }
+          : ColorList ',' NAME { (parseX11Color $3) : $1 }
           | NAME                { [parseX11Color $1] }
-          | {- empty -}         { [] }
-
-ColorList1 :: { [X11Color] }
-           : ColorList1 ',' NAME { (parseX11Color $3) : $1 }
-           | NAME                { [parseX11Color $1] }
 
 ----- Nodes parsing -----
 
