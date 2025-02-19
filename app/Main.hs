@@ -67,7 +67,7 @@ main :: IO ()
 main = do
   quitWithoutGraphviz "Graphviz doesn't seem to be available. Install it before using DependenViz."
 
-  -- Parse the input
+  -- Parse the program's arguments
   options <- execParser opts
   -- putStrLn "Parsed options: "
   -- print options
@@ -98,7 +98,7 @@ createDotGraph (DT.Pr pAttrs nodeList) = do
   graph <- checkCycles graph' nodeMap
 
   let nodeCount = Map.size nodeMap
-  let (maxRank, rankedNodeMap) = DT.findMaxRank nodeMap revMap
+  let (maxRank, rankMap) = DT.findMaxRank nodeMap revMap
 
   colorSpace <- DT.getColorSpace pAttrs nodeCount maxRank
 
@@ -108,12 +108,12 @@ createDotGraph (DT.Pr pAttrs nodeList) = do
         isDirected = True
       , globalAttributes = [GraphAttrs [Splines Ortho]]
       , clusterID = Num . Int
-      , clusterBy = clustBy nodeCount rankedNodeMap revMap
+      , clusterBy = clustBy nodeCount rankMap
       , fmtCluster = const [GraphAttrs [rank SameRank, style invis]]
       , fmtNode = \case
           { (0, _)     -> [toLabel (DT.name pAttrs), shape BoxShape, style bold]
           ; (i, label) -> if i <= nodeCount
-                          then let nAttrs = DT.getNodeAttributes pAttrs colorSpace rankedNodeMap revMap i
+                          then let nAttrs = DT.getNodeAttributes pAttrs colorSpace rankMap nodeMap i
                                in [toLabel label, shape BoxShape, style filled] ++ nAttrs
                           else [style invis]
           }
@@ -129,18 +129,18 @@ createDotGraph (DT.Pr pAttrs nodeList) = do
         -- insert the invisible referenceNodes that keep the specified ranks
         titledGraph''  = referenceNodes titledGraph' nodeCount maxRank
         titledGraph''' = referenceEdges titledGraph'' nodeCount maxRank
-        titledGraph    = invisibleEdges titledGraph''' rankedNodeMap revMap
+        titledGraph    = invisibleEdges titledGraph''' rankMap
     in return $ graphToDot params titledGraph
 
 -- repeatFunc :: (a -> a) -> Int -> a -> a
 -- repeatFunc _ 0 acc = acc
 -- repeatFunc f times acc = repeatFunc f (times-1) (f acc)
 
-clustBy :: Int -> DT.NodeMap -> DT.RevMap -> (Int, String) -> NodeCluster Int (Int, String)
-clustBy nodeCount nodeMap revMap (n,l) = case n of
+clustBy :: Int -> DT.RankMap -> (Int, String) -> NodeCluster Int (Int, String)
+clustBy nodeCount rankMap (n,l) = case n of
   0  -> C 0 $ Data.GraphViz.N (n,l)
   _  -> if n <= nodeCount
-        then C (fst $ DT.getRank nodeMap revMap n) $ Data.GraphViz.N (n,l)
+        then C ((Map.!) rankMap n) $ Data.GraphViz.N (n,l)
         else C (read l) $ Data.GraphViz.N (n,l)
 
 referenceNodes :: Gr String String -> Int -> Int -> Gr String String
@@ -149,11 +149,11 @@ referenceNodes graph' nodeCount maxRank = insNodes [(i+nodeCount,show i) | i <- 
 referenceEdges :: Gr String String -> Int -> Int -> Gr String String
 referenceEdges graph' nodeCount maxRank = insEdges [(i+nodeCount,i+nodeCount+1,show i) | i <- [1..maxRank-1] ] graph'
 
-invisibleEdges :: Gr String String -> DT.NodeMap -> DT.RevMap -> Gr String String
-invisibleEdges graph' nodeMap revMap = aux graph' (Map.keys nodeMap)
+invisibleEdges :: Gr String String -> DT.RankMap -> Gr String String
+invisibleEdges graph' rankMap = aux graph' (Map.keys rankMap)
   where
     aux :: Gr String String -> [Int] -> Gr String String
     aux graph'' []     = graph''
-    aux graph'' (i:xs) = if (fst . DT.getRank nodeMap revMap) i == 1 then aux (insEdge (0,i,"") graph'') xs else aux graph'' xs
+    aux graph'' (i:xs) = if (Map.!) rankMap i == 1 then aux (insEdge (0,i,"") graph'') xs else aux graph'' xs
 
 

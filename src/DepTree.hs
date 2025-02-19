@@ -2,6 +2,8 @@ module DepTree (module DepTree) where
 
 import qualified Data.GraphViz.Attributes as GV
 import qualified Data.GraphViz.Attributes.Colors as GC
+
+import Data.Array.IArray (Ix, Array, (!), (!?), listArray, array)
 import qualified Data.Map as Map
 
 import qualified Data.Graph.Inductive as GI
@@ -25,33 +27,31 @@ newProject = PrAttrs {name="", colorBy=All $ Only GV.LightBlue}
 addName name attr = attr { name = name}
 addColorBy colorRange attr = attr { colorBy = colorRange }
 
-getNodeAttributes :: ProjectAttributes -> [GV.X11Color] -> NodeMap -> RevMap -> Int -> GV.Attributes
-getNodeAttributes pAttrs colorSpace nodeMap revMap i = case colorBy pAttrs of
-  All kind      -> getColorFrom colorSpace i : nodeAttrs
-  Clusters kind -> getColorFrom colorSpace (fst $ getRank nodeMap revMap i) : nodeAttrs
+-- Search for the node's attributes depending on the project's settings
+getNodeAttributes :: ProjectAttributes -> Array Int GV.X11Color -> RankMap -> NodeMap -> Int -> GV.Attributes
+getNodeAttributes pAttrs colorSpace rankMap nodeMap i = case colorBy pAttrs of
+  All kind      -> getColorFromColorSpace colorSpace i : nodeAttrs
+  Clusters kind -> getColorFromColorSpace colorSpace ((Map.!) rankMap i) : nodeAttrs
   where
     nodeAttrs = getAttributes $ snd $ (Map.!) nodeMap i
 
-getColorFrom :: [GV.X11Color] -> Int -> GV.Attribute
-getColorFrom colorSpace i = GV.fillColor $ colorSpace !!! (i-1)
+getColorFromColorSpace :: Array Int GV.X11Color -> Int -> GV.Attribute
+getColorFromColorSpace colorSpace i = case colorSpace !? i of
+  Nothing -> let len = length colorSpace
+             in GV.fillColor $ colorSpace ! ((i `mod` len) + 1)
+  Just c  -> GV.fillColor c
 
--- safe indexing
-(!!!) :: [GV.X11Color] -> Int -> GV.X11Color
-[] !!! i = GV.LightBlue
-xs !!! i = xs !! (i `mod` length xs)
-
-getColorSpace :: ProjectAttributes -> Int -> Int -> IO [GV.X11Color]
+getColorSpace :: ProjectAttributes -> Int -> Int -> IO (Array Int GV.X11Color)
 getColorSpace pAttrs nodeCount maxRank = 
   case colorBy pAttrs of
     All kind      -> checkKind kind nodeCount
     Clusters kind -> checkKind kind maxRank
   where
+    checkKind :: ColorType -> Int -> IO (Array Int GV.X11Color)
     checkKind kind amount = case kind of
-      Random        -> sequence $ generateRandom amount
-      FromList list -> return list
-      Only color    -> return [color]
-    generateRandom 0 = []
-    generateRandom i = randomColor : generateRandom (i-1)
+      Random        -> sequence $ array (1,amount) [(i, randomColor) | i <- [1..amount]]
+      FromList list -> return $ listArray (1, length list) list
+      Only color    -> return $ array (1,1) [(1,color)]
     randomColor :: IO GV.X11Color
     randomColor = do index <- randomIO :: IO Int
                      return $ toEnum $ (index `mod` fromEnum (maxBound :: GV.X11Color))
@@ -99,32 +99,43 @@ getEdges revMap (i,name) = let deps = getDepends revMap name
 getDepends :: RevMap -> Name -> [Name]
 getDepends revMap name = depends $ snd $ (Map.!) revMap name
 
-getRank :: NodeMap -> RevMap -> Int -> (Int, NodeMap)
-getRank nodeMap revMap i =
-  let (name,attrs) = (Map.!) nodeMap i
-  in case rank attrs of
-    Just rank -> (rank, nodeMap)
-    Nothing ->
-      let (maxDeps, newMap) = maxDepsRank (depends attrs) nodeMap revMap
-          newRank = max 1 $ maxDeps + 1
-          newMap' = Map.insert i (name, addRank (Just newRank) attrs) newMap
-      in (newRank, newMap')
+type RankMap = Map.Map Int Int
+
+-- To find the rank of a node we need to check if 
+getRank :: RankMap -> NodeMap -> RevMap -> Int -> (Int, RankMap)
+getRank rankMap nodeMap revMap i =
+  case (Map.!?) rankMap i of
+    Nothing -> 
+      let (name,attrs) = (Map.!) nodeMap i
+      in case rank attrs of
+        Just rank -> 
+          let (maxDRank, rankMap') = maxDepsRank (depends attrs) rankMap nodeMap revMap
+          in  if rank > maxDRank
+              then (rank, Map.insert i rank rankMap')
+              else (maxDRank + 1, Map.insert i (maxDRank + 1) rankMap')
+        Nothing ->
+          let (maxDRank, rankMap') = maxDepsRank (depends attrs) rankMap nodeMap revMap
+              newRank = maxDRank + 1
+          in (newRank, Map.insert i newRank rankMap')
+    Just rank -> (rank, rankMap)
 
 
-maxDepsRank :: [Name] -> NodeMap -> RevMap -> (Int, NodeMap)
-maxDepsRank [] nodeMap revMap = (0, nodeMap)
-maxDepsRank deps nodeMap revMap = foldr (\name (acc,currMap) -> let (rank, newMap) = rankByName name currMap
-                                                            in (max rank acc, newMap)) (0, nodeMap) deps
+maxDepsRank :: [Name] -> RankMap -> NodeMap -> RevMap -> (Int, RankMap)
+maxDepsRank [] rankMap _ _ = (0, rankMap)
+maxDepsRank deps rankMap nodeMap revMap = 
+    foldr (\name (acc,currMap) -> let (rank, newMap) = rankByName name currMap
+                                  in (max rank acc, newMap)) (0, rankMap) deps
   where
-    rankByName str currMap = getRank currMap revMap (fst $ (Map.!) revMap str)
+    rankByName str currMap = getRank currMap nodeMap revMap (fst $ (Map.!) revMap str)
 
-findMaxRank :: NodeMap -> RevMap -> (Int, NodeMap)
-findMaxRank nodeMap revMap = findMaxRank' nodeMap revMap (Map.toList nodeMap) 0
+findMaxRank :: NodeMap -> RevMap -> (Int, RankMap)
+findMaxRank nodeMap revMap = findMaxRank' Map.empty nodeMap revMap (Map.toList nodeMap) 0
 
-findMaxRank' :: NodeMap -> RevMap -> [(Int, (String, Attributes))] -> Int -> (Int, NodeMap)
-findMaxRank' nodeMap revMap [] acc                   = (acc, nodeMap)
-findMaxRank' nodeMap revMap ((i,(name,attr)):xs) acc = let (rank, newMap) = getRank nodeMap revMap i
-                                                       in findMaxRank' newMap revMap xs (max rank acc)
+findMaxRank' :: RankMap -> NodeMap -> RevMap -> [(Int, (String, Attributes))] -> Int -> (Int, RankMap)
+findMaxRank' rankMap _ _ [] acc                   = (acc, rankMap)
+findMaxRank' rankMap nodeMap revMap ((i,(name,attr)):xs) acc = 
+  let (rank, rankMap') = getRank rankMap nodeMap revMap i
+  in findMaxRank' rankMap' nodeMap revMap xs (max rank acc)
 
 
 
