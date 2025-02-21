@@ -30,7 +30,7 @@ import Text.Read (readMaybe)
     random   { TRandom }
     only     { TOnly }
     fromList { TFromList }
-    int      { TInt $$ }
+    INT      { TInt $$ }
     rank     { TRank }
     color    { TColor }
     depends  { TDepends }
@@ -81,12 +81,15 @@ ColorRange :: { ColorRange }
 
 ColorType :: { ColorType }
           : random                     { Random }
-          | only NAME                  { Only (parseX11Color $2) }
+          | only Color                 { Only $2 }
           | fromList '[' ColorList ']' { FromList (reverse $3) }
 
 ColorList :: { [X11Color] }
-          : ColorList ',' NAME { (parseX11Color $3) : $1 }
-          | NAME                { [parseX11Color $1] }
+          : ColorList ',' Color { $3 : $1 }
+          | Color               { [$1] }
+
+Color :: { X11Color }
+      : NAME { parseX11Color $1 }
 
 ----- Nodes parsing -----
 
@@ -110,8 +113,8 @@ Attributes1 :: { Attributes -> Attributes }
             | Attribute ','             { $1 }
 
 Attribute :: { Attributes -> Attributes }
-          : rank ':' int              { addRank (validRank $3) }
-          | color ':' NAME            { addColor (parseX11Color $3) }
+          : rank ':' INT              { addRank (validRank $3) }
+          | color ':' Color           { addColor $3 }
           | depends ':' '[' Deps ']'  { addDeps $4 }
 
 Deps :: { [Name] }
