@@ -101,10 +101,10 @@ getDepends revMap name = depends $ snd $ (Map.!) revMap name
 
 type RankMap = Map.Map Int Int
 
--- To find the rank of a node we need to check if 
 getRank :: RankMap -> NodeMap -> RevMap -> Int -> (Int, RankMap)
 getRank rankMap nodeMap revMap i =
   case (Map.!?) rankMap i of
+    -- If the rank was never cached, we validate it and then cache it.
     Nothing -> 
       let (name,attrs) = (Map.!) nodeMap i
       in case rank attrs of
