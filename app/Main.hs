@@ -111,7 +111,9 @@ createDotGraph (DT.Pr pAttrs nodeList) = do
       , clusterBy = clustBy nodeCount rankMap
       , fmtCluster = const [GraphAttrs [rank SameRank, style invis]]
       , fmtNode = \case
-          { (0, _)     -> [toLabel (DT.name pAttrs), shape BoxShape, style bold]
+          { 
+          ; (_, "")    -> [style invis]
+          ; (0, _)     -> [toLabel (DT.name pAttrs), shape BoxShape, style bold]
           ; (i, label) -> if i <= nodeCount
                           then let nAttrs = DT.getNodeAttributes pAttrs colorSpace rankMap nodeMap i
                                in [toLabel label, shape BoxShape, style filled] ++ nAttrs
@@ -121,16 +123,15 @@ createDotGraph (DT.Pr pAttrs nodeList) = do
       , fmtEdge = \(i, _, eLabel) -> if i == 0 || i >= nodeCount then [style invis] else [toLabel eLabel]
       }
 
-  if DT.name pAttrs == ""
-  then return $ graphToDot params graph
-  else
-    -- Insert the node that holds the title
-    let titledGraph'   = insNode (0, DT.name pAttrs) graph
-        -- insert the invisible referenceNodes that keep the specified ranks
-        titledGraph''  = referenceNodes titledGraph' nodeCount maxRank
-        titledGraph''' = referenceEdges titledGraph'' nodeCount maxRank
-        titledGraph    = invisibleEdges titledGraph''' rankMap
-    in return $ graphToDot params titledGraph
+  -- Insert the node that holds the title
+  let titledGraph'   = if DT.name pAttrs /= ""
+                       then let titledGraph = insNode (0, DT.name pAttrs) graph
+                            in  conectTitle titledGraph rankMap
+                       else graph
+      -- insert the invisible referenceNodes that keep the specified ranks
+      titledGraph''  = referenceNodes titledGraph' nodeCount maxRank
+      titledGraph''' = referenceEdges titledGraph'' nodeCount maxRank 
+  return $ graphToDot params titledGraph'''
 
 -- repeatFunc :: (a -> a) -> Int -> a -> a
 -- repeatFunc _ 0 acc = acc
@@ -149,8 +150,8 @@ referenceNodes graph' nodeCount maxRank = insNodes [(i+nodeCount,show i) | i <- 
 referenceEdges :: Gr String String -> Int -> Int -> Gr String String
 referenceEdges graph' nodeCount maxRank = insEdges [(i+nodeCount,i+nodeCount+1,show i) | i <- [1..maxRank-1] ] graph'
 
-invisibleEdges :: Gr String String -> DT.RankMap -> Gr String String
-invisibleEdges graph' rankMap = aux graph' (Map.keys rankMap)
+conectTitle :: Gr String String -> DT.RankMap -> Gr String String
+conectTitle graph' rankMap = aux graph' (Map.keys rankMap)
   where
     aux :: Gr String String -> [Int] -> Gr String String
     aux graph'' []     = graph''
